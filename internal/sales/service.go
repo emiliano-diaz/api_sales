@@ -4,12 +4,75 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net/http" //Esta se tiene que ir,vamos a usar Resty
+	"net/http"
+
+	// "net/http" // ¡Esta línea se va, como indicaste!
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"resty.dev/v3" // ¡Agregamos la importación de Resty!
 )
+
+// --- Nuevas estructuras para la comunicación con la API de usuarios ---
+
+// User representa la estructura esperada de la respuesta de la API de usuarios.
+// Ajusta esto si tu API de usuarios devuelve otros campos relevantes (ej. IsActive, IsBlocked, etc.).
+type User struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Agrega otros campos que la API de usuarios pueda devolver y que necesites
+	// Por ejemplo:
+	// IsActive bool `json:"is_active"`
+	// Status   string `json:"status"`
+}
+
+// UserClient es un cliente para interactuar con el servicio de usuarios.
+type UserClient struct {
+	baseURL string
+	client  *resty.Client
+}
+
+// NewUserClient crea una nueva instancia de UserClient.
+func NewUserClient(baseURL string) *UserClient {
+	return &UserClient{
+		baseURL: baseURL,
+		client:  resty.New(), // Inicializa el cliente Resty
+	}
+}
+
+// GetUserByID hace una petición GET al servicio de usuarios para verificar si un usuario existe.
+func (uc *UserClient) GetUserByID(userID string) (*User, error) {
+	// Construye la URL completa. Por ejemplo: "http://localhost:8080/users/123"
+	url := fmt.Sprintf("%s/%s", uc.baseURL, userID)
+
+	// Prepara la respuesta esperada por Resty
+	var user User
+
+	resp, err := uc.client.R().
+		SetResult(&user). // Resty intentará decodificar el JSON de la respuesta en la variable 'user'
+		Get(url)
+
+	if err != nil {
+		// Error de red, timeout, etc.
+		return nil, fmt.Errorf("error al hacer la petición al servicio de usuarios: %w", err)
+	}
+
+	// Manejo de los códigos de estado HTTP
+	switch resp.StatusCode() {
+	case http.StatusOK:
+		// Si es 200 OK, el usuario existe y la respuesta JSON está en 'user'
+		return &user, nil
+	case http.StatusNotFound:
+		// Si es 404 Not Found, el usuario no existe
+		return nil, fmt.Errorf("usuario no encontrado: %s", userID) // Retorna un error específico
+	default:
+		// Cualquier otro código de estado inesperado
+		return nil, fmt.Errorf("el servicio de usuarios devolvió un estado inesperado (%d): %s", resp.StatusCode(), resp.String())
+	}
+}
+
+// ----------------------------------------------------------------------
 
 // Error para transiciones inválidas
 var ErrInvalidTransition = errors.New("invalid status transition")
@@ -19,8 +82,10 @@ var ErrInvalidStatus = errors.New("invalid status value")
 
 // Service provides high-level sales management operations on a Storage backend.
 type Service struct {
-	storage Storage
-	logger  *zap.Logger
+	storage    Storage
+	logger     *zap.Logger
+	userClient *UserClient // ¡Agregamos el cliente de usuarios al servicio!
+
 }
 
 // Metadata para la respuesta de búsqueda
@@ -33,15 +98,17 @@ type SalesMetadata struct {
 }
 
 // NewService creates a new Service.
-func NewService(storage Storage, logger *zap.Logger) *Service {
+// Ahora recibe el UserClient para inyectar la dependencia.
+func NewService(storage Storage, logger *zap.Logger, userAPIURL string) *Service { // userAPIURL es la URL base del servicio de usuarios
 	if logger == nil {
 		logger, _ = zap.NewProduction()
 		defer logger.Sync() // flushes buffer, if any
 	}
 
 	return &Service{
-		storage: storage,
-		logger:  logger,
+		storage:    storage,
+		logger:     logger,
+		userClient: NewUserClient(userAPIURL), // Inicializa el cliente de usuarios aquí
 	}
 }
 
@@ -51,16 +118,35 @@ func (s *Service) CreateSale(userID string, amount float64) (*Sale, error) {
 		return nil, fmt.Errorf("amount must be greater than zero")
 	}
 
-	// Validar que el usuario existe llamando a la API de usuarios
-	userExists, err := s.validateUser(userID)
+	/*
+		// Validar que el usuario existe llamando a la API de usuarios
+		userExists, err := s.validateUser(userID)
+		if err != nil {
+			s.logger.Error("error validating user", zap.String("user_id", userID), zap.Error(err))
+			//return nil, fmt.Errorf("error validating user: %w", err)
+			return nil, fmt.Errorf("error validating user")
+		}
+		if !userExists {
+			return nil, fmt.Errorf("user not found")
+		}
+	*/
+
+	// Ahora usamos el UserClient inyectado en el Service
+	user, err := s.userClient.GetUserByID(userID)
 	if err != nil {
-		s.logger.Error("error validating user", zap.String("user_id", userID), zap.Error(err))
-		//return nil, fmt.Errorf("error validating user: %w", err)
+		// GetUserByID ya retorna un error específico si no encuentra el usuario.
+		// Aquí manejamos errores de comunicación o "usuario no encontrado"
+		s.logger.Error("error al validar usuario con el servicio externo", zap.String("user_id", userID), zap.Error(err))
+
+		// Podemos ser más específicos en el mensaje de error al cliente si queremos
+		if errors.Is(err, fmt.Errorf("usuario no encontrado: %s", userID)) { // Compara si el error es de usuario no encontrado
+			return nil, fmt.Errorf("user not found", userID)
+		}
+
 		return nil, fmt.Errorf("error validating user")
 	}
-	if !userExists {
-		return nil, fmt.Errorf("user not found")
-	}
+
+	fmt.Printf("Usuario %s encontrado y validado: %v\n", userID, user) // Solo para depuración
 
 	sale := &Sale{
 		ID:        uuid.NewString(),

@@ -12,12 +12,13 @@ import (
 // It initializes the storage, service, and handler, then binds each HTTP
 // method and path to the appropriate handler function.
 func InitRoutes(e *gin.Engine) {
+	userServiceURL := "http://localhost:8080/users"
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
 	// Inicialización de la lógica de ventas
 	salesStorage := sales.NewLocalStorage()
-	salesService := sales.NewService(salesStorage, logger)
+	salesService := sales.NewService(salesStorage, logger, userServiceURL)
 	salesHandler := NewSalesHandler(salesService, logger)
 
 	e.POST("/sales", salesHandler.handleCreateSale)

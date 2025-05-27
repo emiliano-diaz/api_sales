@@ -16,8 +16,9 @@ import (
 func TestNewService(t *testing.T) {
 	mockStorage := NewLocalStorage() // Usamos tu LocalStorage como mock in-memory
 	logger := zaptest.NewLogger(t)   // Logger para pruebas
+	userServiceURL := "http://localhost:8080/users"
 
-	svc := NewService(mockStorage, logger)
+	svc := NewService(mockStorage, logger, userServiceURL)
 
 	if svc == nil {
 		t.Fatal("NewService returned nil")
@@ -33,6 +34,7 @@ func TestNewService(t *testing.T) {
 
 // TestCreateSale_UserNotFound prueba la creación cuando el usuario no existe.
 func TestCreateSale_UserNotFound(t *testing.T) {
+	userServiceURL := "http://localhost:8080/users"
 	mockStorage := NewLocalStorage()
 	logger := zaptest.NewLogger(t)
 
@@ -41,7 +43,7 @@ func TestCreateSale_UserNotFound(t *testing.T) {
 	}))
 	defer mockUserServer.Close()
 
-	svc := NewService(mockStorage, logger)
+	svc := NewService(mockStorage, logger, userServiceURL)
 
 	userID := "non-existent-user"
 	amount := 100.0
