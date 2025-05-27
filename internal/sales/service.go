@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-
-	// "net/http" // ¡Esta línea se va, como indicaste!
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"resty.dev/v3" // ¡Agregamos la importación de Resty!
+	"resty.dev/v3"
 )
 
 // --- Nuevas estructuras para la comunicación con la API de usuarios ---
@@ -140,7 +138,7 @@ func (s *Service) CreateSale(userID string, amount float64) (*Sale, error) {
 
 		// Podemos ser más específicos en el mensaje de error al cliente si queremos
 		if errors.Is(err, fmt.Errorf("usuario no encontrado: %s", userID)) { // Compara si el error es de usuario no encontrado
-			return nil, fmt.Errorf("user not found", userID)
+			return nil, fmt.Errorf("user not found")
 		}
 
 		return nil, fmt.Errorf("error validating user")
@@ -170,13 +168,15 @@ func (s *Service) CreateSale(userID string, amount float64) (*Sale, error) {
 func (s *Service) SearchSale(userID, status string) ([]*Sale, SalesMetadata, error) {
 
 	//0. Validar que el usuario existe llamando a la API de usuarios
-	userExists, err := s.validateUser(userID)
-	if err != nil {
-		s.logger.Error("error validating user", zap.String("user_id", userID), zap.Error(err))
-		return nil, SalesMetadata{}, fmt.Errorf("error validating user: %w", err)
-	}
-	if !userExists {
-		return nil, SalesMetadata{}, fmt.Errorf("user with ID '%s' not found", userID)
+	if userID != "" {
+		userExists, err := s.userClient.GetUserByID(userID)
+		if err != nil {
+			s.logger.Error("error validating user", zap.String("user_id", userID), zap.Error(err))
+			return nil, SalesMetadata{}, fmt.Errorf("error validating user: %w", err)
+		}
+		if userExists == nil {
+			return nil, SalesMetadata{}, fmt.Errorf("user with ID '%s' not found", userID)
+		}
 	}
 
 	// 1. Validar el status

@@ -83,8 +83,8 @@ func (h *salesHandler) handleCreateSale(ctx *gin.Context) {
 
 func (h *salesHandler) handlerGetSale(ctx *gin.Context) {
 
-	idUser := ctx.Query("id")
-	stateSale := ctx.Query("state")
+	idUser := ctx.Query("user_id")
+	stateSale := ctx.Query("status")
 
 	// Llama al servicio para buscar y obtener metadatos
 	salesResults, metadata, err := h.salesService.SearchSale(idUser, stateSale)
