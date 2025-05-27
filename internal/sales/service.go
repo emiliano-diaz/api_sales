@@ -175,7 +175,7 @@ func (s *Service) SearchSale(userID, status string) ([]*Sale, SalesMetadata, err
 			return nil, SalesMetadata{}, fmt.Errorf("error validating user: %w", err)
 		}
 		if userExists == nil {
-			return nil, SalesMetadata{}, fmt.Errorf("user with ID '%s' not found", userID)
+			return nil, SalesMetadata{}, fmt.Errorf("usuario no encontrado: %s", userID)
 		}
 	}
 
@@ -191,7 +191,7 @@ func (s *Service) SearchSale(userID, status string) ([]*Sale, SalesMetadata, err
 			parsedStatus = status
 		default:
 			s.logger.Warn("Invalid status filter provided", zap.String("statusFilter", status))
-			return nil, SalesMetadata{}, fmt.Errorf("%w: '%s'", ErrInvalidStatus, status)
+			return nil, SalesMetadata{}, fmt.Errorf("invalid status value")
 		}
 	}
 
