@@ -63,7 +63,7 @@ func (uc *UserClient) GetUserByID(userID string) (*User, error) {
 		return &user, nil
 	case http.StatusNotFound:
 		// Si es 404 Not Found, el usuario no existe
-		return nil, fmt.Errorf("usuario no encontrado: %s", userID) // Retorna un error específico
+		return nil, errors.New("user not found") // Retorna un error específico
 	default:
 		// Cualquier otro código de estado inesperado
 		return nil, fmt.Errorf("el servicio de usuarios devolvió un estado inesperado (%d): %s", resp.StatusCode(), resp.String())
