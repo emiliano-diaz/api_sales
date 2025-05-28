@@ -32,3 +32,24 @@ func InitRoutes(e *gin.Engine) {
 	})
 
 }
+
+func InitRoutes2(e *gin.Engine, userServiceURL string) {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	// Inicialización de la lógica de ventas
+	salesStorage := sales.NewLocalStorage()
+	salesService := sales.NewService(salesStorage, logger, userServiceURL)
+	salesHandler := NewSalesHandler(salesService, logger)
+
+	e.POST("/sales", salesHandler.handleCreateSale)
+	e.PATCH("/sales/:id", salesHandler.PatchSaleHandler(salesService))
+	e.GET("/sales", salesHandler.handlerGetSale)
+
+	e.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "pong",
+		})
+	})
+
+}
