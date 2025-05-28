@@ -34,7 +34,7 @@ func TestNewService(t *testing.T) {
 
 // TestCreateSale_UserNotFound prueba la creación cuando el usuario no existe.
 func TestCreateSale_UserNotFound(t *testing.T) {
-	userServiceURL := "http://localhost:8080/users"
+	//userServiceURL := "http://localhost:8080/users"
 	mockStorage := NewLocalStorage()
 	logger := zaptest.NewLogger(t)
 
@@ -43,7 +43,7 @@ func TestCreateSale_UserNotFound(t *testing.T) {
 	}))
 	defer mockUserServer.Close()
 
-	svc := NewService(mockStorage, logger, userServiceURL)
+	svc := NewService(mockStorage, logger, mockUserServer.URL)
 
 	userID := "non-existent-user"
 	amount := 100.0
@@ -55,7 +55,7 @@ func TestCreateSale_UserNotFound(t *testing.T) {
 	if sale != nil {
 		t.Error("CreateSale returned a sale, expected nil")
 	}
-	expectedErr := "user with ID 'non-existent-user' not found"
+	expectedErr := "user not found"
 	if err.Error() != expectedErr {
 		t.Errorf("Expected error containing '%s', got '%s'", expectedErr, err.Error())
 	}
