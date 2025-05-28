@@ -8,10 +8,6 @@ import (
 	"go.uber.org/zap/zaptest" // Para un logger de prueba
 )
 
-// Mock para la interfaz Storage
-// Aunque ya tienes LocalStorage, es bueno entender cómo se haría un mock si LocalStorage no fuera suficiente.
-// Para este caso, LocalStorage es perfecto como "fake" storage.
-
 // TestNewService verifica la inicialización del servicio.
 func TestNewService(t *testing.T) {
 	mockStorage := NewLocalStorage() // Usamos tu LocalStorage como mock in-memory
@@ -29,33 +25,39 @@ func TestNewService(t *testing.T) {
 	if svc.logger == nil {
 		t.Error("Service logger was not initialized")
 	}
-
 }
 
 // TestCreateSale_UserNotFound prueba la creación cuando el usuario no existe.
 func TestCreateSale_UserNotFound(t *testing.T) {
-	//userServiceURL := "http://localhost:8080/users"
+	userServiceURL := "http://localhost:8080/users"
 	mockStorage := NewLocalStorage()
 	logger := zaptest.NewLogger(t)
 
 	mockUserServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
+		// No es necesario escribir un cuerpo JSON para un 404 simple en este test.
 	}))
-	defer mockUserServer.Close()
+	defer mockUserServer.Close() // Asegúrate de cerrar el servidor al finalizar el test.
 
-	svc := NewService(mockStorage, logger, mockUserServer.URL)
+	mockStorage := NewLocalStorage()
+	logger := zaptest.NewLogger(t)
 
-	userID := "non-existent-user"
+	svc := NewService(mockStorage, logger, userServiceURL)
+
+	userID := "non-existent-user-123"
 	amount := 100.0
 
 	sale, err := svc.CreateSale(userID, amount)
+
+	// Verificamos que se haya retornado un error.
 	if err == nil {
 		t.Fatal("CreateSale expected an error for user not found, got none")
 	}
+	// Verificamos que no se haya creado ninguna venta.
 	if sale != nil {
 		t.Error("CreateSale returned a sale, expected nil")
 	}
-	expectedErr := "user not found"
+	expectedErr := "user with ID 'non-existent-user' not found"
 	if err.Error() != expectedErr {
 		t.Errorf("Expected error containing '%s', got '%s'", expectedErr, err.Error())
 	}

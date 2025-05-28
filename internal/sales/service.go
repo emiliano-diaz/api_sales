@@ -64,7 +64,7 @@ func (uc *UserClient) GetUserByID(userID string) (*User, error) {
 		return &user, nil
 	case http.StatusNotFound:
 		// Si es 404 Not Found, el usuario no existe
-		return nil, fmt.Errorf("usuario no encontrado") // Retorna un error específico
+		return nil, fmt.Errorf("usuario no encontrado: %s", userID) // Retorna un error específico
 	default:
 		// Cualquier otro código de estado inesperado
 		return nil, fmt.Errorf("el servicio de usuarios devolvió un estado inesperado (%d): %s", resp.StatusCode(), resp.String())
@@ -176,7 +176,7 @@ func (s *Service) SearchSale(userID, status string) ([]*Sale, SalesMetadata, err
 			return nil, SalesMetadata{}, fmt.Errorf("error validating user: %w", err)
 		}
 		if userExists == nil {
-			return nil, SalesMetadata{}, fmt.Errorf("user with ID '%s' not found", userID)
+			return nil, SalesMetadata{}, fmt.Errorf("usuario no encontrado: %s", userID)
 		}
 	}
 
@@ -192,7 +192,7 @@ func (s *Service) SearchSale(userID, status string) ([]*Sale, SalesMetadata, err
 			parsedStatus = status
 		default:
 			s.logger.Warn("Invalid status filter provided", zap.String("statusFilter", status))
-			return nil, SalesMetadata{}, fmt.Errorf("%w: '%s'", ErrInvalidStatus, status)
+			return nil, SalesMetadata{}, fmt.Errorf("invalid status value")
 		}
 	}
 
