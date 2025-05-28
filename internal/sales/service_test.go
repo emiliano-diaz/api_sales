@@ -1,7 +1,6 @@
 package sales
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,8 +29,10 @@ func TestNewService(t *testing.T) {
 
 // TestCreateSale_UserNotFound prueba la creación cuando el usuario no existe.
 func TestCreateSale_UserNotFound(t *testing.T) {
-	// Creamos un mock de servidor HTTP para simular la API de usuarios.
-	// Este servidor responderá con un 404 Not Found para cualquier petición.
+	userServiceURL := "http://localhost:8080/users"
+	mockStorage := NewLocalStorage()
+	logger := zaptest.NewLogger(t)
+
 	mockUserServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		// No es necesario escribir un cuerpo JSON para un 404 simple en este test.
@@ -41,8 +42,7 @@ func TestCreateSale_UserNotFound(t *testing.T) {
 	mockStorage := NewLocalStorage()
 	logger := zaptest.NewLogger(t)
 
-	// Inicializamos el servicio de ventas utilizando la URL de nuestro mock de servidor.
-	svc := NewService(mockStorage, logger, mockUserServer.URL) // ¡Aquí usamos la URL del mock!
+	svc := NewService(mockStorage, logger, userServiceURL)
 
 	userID := "non-existent-user-123"
 	amount := 100.0
@@ -57,10 +57,8 @@ func TestCreateSale_UserNotFound(t *testing.T) {
 	if sale != nil {
 		t.Error("CreateSale returned a sale, expected nil")
 	}
-
-	// Verificamos que el error sea el específico de "user not found".
-	// Usamos errors.Is para comparar errores de forma robusta.
-	if errors.Is(err, errors.New("user not found")) {
-		t.Errorf("Expected error 'user not found', got '%v'", err)
+	expectedErr := "user with ID 'non-existent-user' not found"
+	if err.Error() != expectedErr {
+		t.Errorf("Expected error containing '%s', got '%s'", expectedErr, err.Error())
 	}
 }

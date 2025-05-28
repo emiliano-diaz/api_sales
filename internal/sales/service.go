@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,7 +64,7 @@ func (uc *UserClient) GetUserByID(userID string) (*User, error) {
 		return &user, nil
 	case http.StatusNotFound:
 		// Si es 404 Not Found, el usuario no existe
-		return nil, errors.New("user not found") // Retorna un error específico
+		return nil, fmt.Errorf("usuario no encontrado: %s", userID) // Retorna un error específico
 	default:
 		// Cualquier otro código de estado inesperado
 		return nil, fmt.Errorf("el servicio de usuarios devolvió un estado inesperado (%d): %s", resp.StatusCode(), resp.String())
@@ -137,7 +138,7 @@ func (s *Service) CreateSale(userID string, amount float64) (*Sale, error) {
 		s.logger.Error("error al validar usuario con el servicio externo", zap.String("user_id", userID), zap.Error(err))
 
 		// Podemos ser más específicos en el mensaje de error al cliente si queremos
-		if errors.Is(err, fmt.Errorf("usuario no encontrado: %s", userID)) { // Compara si el error es de usuario no encontrado
+		if strings.Contains(err.Error(), "usuario no encontrado") { // Compara si el error es de usuario no encontrado
 			return nil, fmt.Errorf("user not found")
 		}
 
