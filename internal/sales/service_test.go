@@ -5,13 +5,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go.uber.org/zap/zaptest" // Para un logger de prueba
+	"go.uber.org/zap/zaptest"
 )
 
 // TestNewService verifica la inicialización del servicio.
 func TestNewService(t *testing.T) {
-	mockStorage := NewLocalStorage() // Usamos tu LocalStorage como mock in-memory
-	logger := zaptest.NewLogger(t)   // Logger para pruebas
+	mockStorage := NewLocalStorage()
+	logger := zaptest.NewLogger(t)
 	userServiceURL := "http://localhost:8080/users"
 
 	svc := NewService(mockStorage, logger, userServiceURL)
@@ -29,19 +29,17 @@ func TestNewService(t *testing.T) {
 
 // TestCreateSale_UserNotFound prueba la creación cuando el usuario no existe.
 func TestCreateSale_UserNotFound(t *testing.T) {
-	//userServiceURL := "http://localhost:8080/users"
 	mockStorage := NewLocalStorage()
 	logger := zaptest.NewLogger(t)
 
 	mockUserServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		// No es necesario escribir un cuerpo JSON para un 404 simple en este test.
 	}))
-	defer mockUserServer.Close() // Asegúrate de cerrar el servidor al finalizar el test.
+	defer mockUserServer.Close()
 
 	svc := NewService(mockStorage, logger, mockUserServer.URL)
 
-	userID := "non-existent-user-123"
+	userID := "usuario-no-existente-123"
 	amount := 100.0
 
 	sale, err := svc.CreateSale(userID, amount)

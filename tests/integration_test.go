@@ -8,40 +8,32 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"api_sales/api"            // Importa tu paquete API para inicializar las rutas
-	"api_sales/internal/sales" // Importa el paquete sales para acceder a sus estructuras y errores
+	"api_sales/api"
+	"api_sales/internal/sales"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert" // Usaremos testify para aserciones
+	"github.com/stretchr/testify/assert"
 )
 
-// InitRoutesTests configura un router de Gin para pruebas
-// utilizando un mock server para el servicio de usuarios.
-// Retorna el *gin.Engine configurado y el *httptest.Server del mock de usuarios
-// para que el llamador pueda cerrar el mock server con defer.
-
 func InitRoutesTests() (*gin.Engine, *httptest.Server) {
-	// 1. Configurar Gin para modo de prueba
+	// 1. Configurar Gin
 	gin.SetMode(gin.TestMode)
-	router := gin.New() // Usamos gin.New() para evitar middlewares por defecto que no queremos en tests
+	router := gin.New()
 
 	// 2. Levantar el mock server de usuarios
 	userMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.URL.Path[len("/users/"):] // Extrae el ID de la URL
+		userID := r.URL.Path[len("/users/"):]
 		switch userID {
 		case "user123":
-			// Usuario existente y válido para todas las operaciones del happy path
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"id": "user123", "name": "Test User 123"}`))
 		default:
-			// Cualquier otro ID de usuario, también como no encontrado
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("User not found"))
 		}
 	}))
-	// No necesitamos defer userMockServer.Close() aquí, lo hará el llamador.
 
-	// 3. Inicializar las rutas de tu API de ventas, pasándole la URL de nuestro mock server.
+	// 3. Inicializar las rutas de la API de ventas
 	api.InitRoutes2(router, userMockServer.URL+"/users")
 
 	return router, userMockServer
@@ -49,16 +41,15 @@ func InitRoutesTests() (*gin.Engine, *httptest.Server) {
 
 // TestSalesHappyPath_FullFlow prueba el flujo completo de POST -> PATCH -> GET en el happy path.
 func TestSalesHappyPath_FullFlow(t *testing.T) {
-	// Setup: Obtener un router y un mock server de usuario limpios para este test
 	router, userMockServer := InitRoutesTests()
-	defer userMockServer.Close() // Asegúrate de cerrar el mock server al finalizar el test
+	defer userMockServer.Close()
 
-	var saleID string // <-- DECLARAMOS LA VARIABLE saleID AQUÍ
+	var saleID string
 
-	// --- PASO 1: POST /sales (Crear una venta) ---
+	//1: POST /sales
 	t.Run("POST_CreateSale", func(t *testing.T) {
 		requestBody := map[string]interface{}{
-			"user_id": "user123", // Este usuario existirá en nuestro mock server
+			"user_id": "user123",
 			"amount":  150.75,
 		}
 		bodyBytes, _ := json.Marshal(requestBody)
@@ -80,18 +71,15 @@ func TestSalesHappyPath_FullFlow(t *testing.T) {
 		assert.Contains(t, []string{"pending", "approved", "rejected"}, createdSale.Status, "Expected a valid status in created sale")
 		assert.Equal(t, 1, createdSale.Version, "Expected initial version to be 1")
 
-		saleID = createdSale.ID // <-- ASIGNAMOS EL VALOR A LA VARIABLE DE CIERRE
+		saleID = createdSale.ID
 	})
 
-	// Si el subtest anterior falla y no se asigna saleID, los siguientes subtests también fallarán.
-	// Podemos añadir una verificación aquí si lo deseas, pero t.Fatal en el subtest anterior ya abortaría.
 	if saleID == "" {
 		t.Fatal("Sale ID was not successfully generated in POST_CreateSale step.")
 	}
 
-	// --- PASO 2: PATCH /sales/:id (Actualizar el estado de la venta) ---
+	//2: PATCH /sales/:id
 	t.Run("PATCH_UpdateSaleStatus", func(t *testing.T) {
-		// saleID ya está disponible en el closure
 
 		requestBody := map[string]string{
 			"status": "approved",
@@ -115,11 +103,8 @@ func TestSalesHappyPath_FullFlow(t *testing.T) {
 		assert.True(t, updatedSale.UpdatedAt.After(updatedSale.CreatedAt), "Expected UpdatedAt to be after CreatedAt")
 	})
 
-	// --- PASO 3: GET /sales (Obtener la venta por user_id) ---
+	//3: GET /sales
 	t.Run("GET_SearchSale", func(t *testing.T) {
-		// saleID ya está disponible en el closure
-
-		// Realizar una búsqueda por el user_id que usamos
 		req := httptest.NewRequest(http.MethodGet, "/sales?user_id=user123", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -144,11 +129,8 @@ func TestSalesHappyPath_FullFlow(t *testing.T) {
 		assert.Equal(t, 150.75, response.Metadata.TotalAmount, "Expected total amount in metadata")
 	})
 
-	// --- PASO 4: GET /sales (Obtener la venta por status) ---
+	//4: GET /sales
 	t.Run("GET_SearchSaleByStatus", func(t *testing.T) {
-		// saleID ya está disponible en el closure
-
-		// Realizar una búsqueda por el estado 'approved'
 		req := httptest.NewRequest(http.MethodGet, "/sales?status=approved", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)

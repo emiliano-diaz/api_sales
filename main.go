@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"github.com/gin-gonic/gin"
 	"api_sales/api"
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {

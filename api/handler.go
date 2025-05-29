@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// salesHandler holds the sales service and implements HTTP handlers for sales operations.
 type salesHandler struct {
 	salesService *sales.Service
 	logger       *zap.Logger
@@ -73,7 +72,6 @@ func (h *salesHandler) handleCreateSale(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		// Consider more specific error handling based en el tipo de error
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create sale"})
 		return
 	}
@@ -86,7 +84,7 @@ func (h *salesHandler) handlerGetSale(ctx *gin.Context) {
 	idUser := ctx.Query("user_id")
 	stateSale := ctx.Query("status")
 
-	// Llama al servicio para buscar y obtener metadatos
+	// Llama al servicio para buscar y obtener los metadatos
 	salesResults, metadata, err := h.salesService.SearchSale(idUser, stateSale)
 
 	if err != nil {
